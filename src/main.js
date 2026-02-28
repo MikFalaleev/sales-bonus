@@ -140,10 +140,6 @@ function analyzeSalesData(data, options) {
 
   // @TODO: Подготовка итоговой коллекции с нужными полями
 
-  for (const seller of sortedSellers) {
-    delete seller.products_sold;
-  }
-
   const result = sortedSellers.map((seller) => ({
     seller_id: seller.seller_id,
     name: seller.name,
