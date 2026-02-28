@@ -97,18 +97,18 @@ function analyzeSalesData(data, options) {
   for (const record of data.purchase_records) {
     const stats = sellerStats.get(record.seller_id);
     if (!stats) continue;
+
     stats.sales_count += 1;
+
+    stats.revenue += record.total_amount;
 
     for (const item of record.items) {
       const product = productIndex[item.sku];
       if (!product) continue;
 
-      const itemRevenue = calculateRevenue(item, product);
-
-      const itemCost = product.purchase_price * item.quantity;
-
-      stats.revenue += itemRevenue;
-      stats.profit += itemRevenue - itemCost;
+      const revenue = calculateRevenue(item, product);
+      const cost = product.purchase_price * item.quantity;
+      stats.profit += revenue - cost;
 
       if (stats.products_sold[item.sku] === undefined) {
         stats.products_sold[item.sku] = 0;
@@ -127,11 +127,8 @@ function analyzeSalesData(data, options) {
 
   for (let i = 0; i < sortedSellers.length; i++) {
     const seller = sortedSellers[i];
-
-    // 1) Бонус
     seller.bonus = calculateBonus(i, sortedSellers.length, seller);
 
-    // 2) Топ-10 товаров (по количеству)
     seller.top_products = Object.entries(seller.products_sold)
       .map(([sku, quantity]) => ({ sku, quantity }))
       .sort((a, b) => b.quantity - a.quantity)
@@ -140,17 +137,13 @@ function analyzeSalesData(data, options) {
 
   // @TODO: Подготовка итоговой коллекции с нужными полями
 
-  const result = sortedSellers.map((seller) => ({
+  return sortedSellers.map((seller) => ({
     seller_id: seller.seller_id,
     name: seller.name,
     revenue: +seller.revenue.toFixed(2),
     profit: +seller.profit.toFixed(2),
     sales_count: seller.sales_count,
-    top_products: seller.top_products
-      .map((p) => `${p.sku} (${p.quantity})`)
-      .join(", "),
+    top_products: seller.top_products, // Убрали .map().join()
     bonus: +seller.bonus.toFixed(2),
   }));
-
-  return result;
 }
