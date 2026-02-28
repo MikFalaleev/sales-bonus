@@ -97,6 +97,7 @@ function analyzeSalesData(data, options) {
     if (!stats) continue;
 
     stats.sales_count += 1;
+    stats.revenue += record.total_amount;
 
     for (const item of record.items) {
       const product = productsBySku.get(item.sku);
@@ -105,7 +106,6 @@ function analyzeSalesData(data, options) {
       const revenue = calculateRevenue(item, product);
       const cost = product.purchase_price * item.quantity;
 
-      stats.revenue += revenue;
       stats.profit += revenue - cost;
 
       if (stats.products_sold[item.sku] === undefined) {
