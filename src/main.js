@@ -7,13 +7,10 @@
 
 function calculateSimpleRevenue(purchase, _product) {
   // @TODO: Расчет выручки от операции
-  const { discount, sale_price, quantity } = purchase;
+  const { sale_price, quantity } = purchase;
 
-  const discountDecimal = discount / 100;
-  const total = sale_price * quantity;
-  const revenue = total * (1 - discountDecimal);
-
-  return revenue;
+  const discount = 1 - purchase.discount / 100;
+  return sale_price * quantity * discount;
 }
 
 /**
@@ -25,11 +22,14 @@ function calculateSimpleRevenue(purchase, _product) {
  */
 
 function calculateBonusByProfit(index, total, seller) {
-  // @TODO: Расчет бонуса от позиции в рейтинге
-  const { profit } = seller; // тоже что и 'const profit = saller.profit'
+  const { profit } = seller;
+
+  if (total === 0 || profit <= 0) return 0;
+  if (total > 1 && index === total - 1) return 0;
+
   if (index === 0) return profit * 0.15;
   if (index === 1 || index === 2) return profit * 0.1;
-  if (index === total - 1) return 0;
+
   return profit * 0.05;
 }
 
@@ -85,28 +85,30 @@ function analyzeSalesData(data, options) {
 
   // @TODO: Индексация продавцов и товаров для быстрого доступа
 
-  const productsBySku = new Map();
-  for (const product of data.products) {
-    productsBySku.set(product.sku, product);
-  }
+  const sellerStatsArray = Array.from(sellerStats.values());
+  const sellerIndex = Object.fromEntries(
+    sellerStatsArray.map((stats) => [stats.seller_id, stats])
+  );
+  const productIndex = Object.fromEntries(
+    data.products.map((product) => [product.sku, product])
+  );
 
   // @TODO: Расчет выручки и прибыли для каждого продавца
-
   for (const record of data.purchase_records) {
     const stats = sellerStats.get(record.seller_id);
     if (!stats) continue;
-
     stats.sales_count += 1;
-    stats.revenue += record.total_amount;
 
     for (const item of record.items) {
-      const product = productsBySku.get(item.sku);
+      const product = productIndex[item.sku];
       if (!product) continue;
 
-      const revenue = calculateRevenue(item, product);
-      const cost = product.purchase_price * item.quantity;
+      const itemRevenue = calculateRevenue(item, product);
 
-      stats.profit += revenue - cost;
+      const itemCost = product.purchase_price * item.quantity;
+
+      stats.revenue += itemRevenue;
+      stats.profit += itemRevenue - itemCost;
 
       if (stats.products_sold[item.sku] === undefined) {
         stats.products_sold[item.sku] = 0;
@@ -148,9 +150,10 @@ function analyzeSalesData(data, options) {
     revenue: +seller.revenue.toFixed(2),
     profit: +seller.profit.toFixed(2),
     sales_count: seller.sales_count,
-    top_products_count: seller.top_products.length,
+    top_products: seller.top_products
+      .map((p) => `${p.sku} (${p.quantity})`)
+      .join(", "),
     bonus: +seller.bonus.toFixed(2),
-    top_products: seller.top_products,
   }));
 
   return result;
